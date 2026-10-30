@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.npm-cache/
+.env
+.env.*
+*.local.json
+*.log
+config.json
+state.json
+credentials*
+.botlink/

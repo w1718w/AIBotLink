@@ -1,0 +1,322 @@
+{
+  "identifiersRedacted": true,
+  "checkedAt": "2026-10-30T14:20:58.195Z",
+  "inferenceStarted": false,
+  "codex": {
+    "initialize": {
+      "ok": true,
+      "result": {
+        "userAgent": "Codex Desktop/0.153.2 (Windows 10.0.26200; x86_64) dumb (botlink-research; 0.1.0)",
+        "codexHome": "%USERPROFILE%\\Desktop\\BotLink\\.research\\codex-home",
+        "platformFamily": "windows",
+        "platformOs": "windows"
+      }
+    },
+    "models": {
+      "ok": true,
+      "result": {
+        "count": 2,
+        "sample": [
+          {
+            "id": "gpt-5.6-sol",
+            "effort": [
+              {
+                "reasoningEffort": "low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "reasoningEffort": "medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "reasoningEffort": "high",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "reasoningEffort": "xhigh",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "reasoningEffort": "max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "reasoningEffort": "ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ]
+          },
+          {
+            "id": "gpt-5.6-terra",
+            "effort": [
+              {
+                "reasoningEffort": "low",
+                "description": "Fast responses with lighter reasoning"
+              },
+              {
+                "reasoningEffort": "medium",
+                "description": "Balances speed and reasoning depth for everyday tasks"
+              },
+              {
+                "reasoningEffort": "high",
+                "description": "Greater reasoning depth for complex problems"
+              },
+              {
+                "reasoningEffort": "xhigh",
+                "description": "Extra high reasoning depth for complex problems"
+              },
+              {
+                "reasoningEffort": "max",
+                "description": "Maximum reasoning depth for the hardest problems"
+              },
+              {
+                "reasoningEffort": "ultra",
+                "description": "Maximum reasoning with automatic task delegation"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "threads": {
+      "ok": true,
+      "result": {
+        "count": 0
+      }
+    },
+    "ephemeralThread": {
+      "ok": true,
+      "result": {
+        "id": "REDACTED_TEST_ID_1",
+        "ephemeral": true,
+        "sandbox": {
+          "type": "readOnly",
+          "networkAccess": false
+        },
+        "approvalPolicy": "on-request"
+      }
+    }
+  },
+  "dsh": {
+    "initialize": {
+      "ok": true,
+      "result": {
+        "protocolVersion": 1,
+        "agentInfo": {
+          "name": "deepseek-harness-acp",
+          "version": "0.0.1"
+        },
+        "agentCapabilities": {
+          "mcpCapabilities": {
+            "http": true
+          },
+          "promptCapabilities": {
+            "image": false,
+            "audio": false,
+            "embeddedContext": false
+          },
+          "sessionCapabilities": {
+            "close": {},
+            "list": {},
+            "resume": {}
+          }
+        },
+        "authMethods": []
+      }
+    },
+    "newSession": {
+      "ok": true,
+      "result": {
+        "sessionId": "REDACTED_TEST_ID_2",
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                    "name": "deepseek-v4-flash"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "reasoning_effort",
+            "name": "Reasoning effort",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": "high",
+            "options": [
+              {
+                "value": "off",
+                "name": "Off",
+                "description": "Use for simple tasks that do not need reasoning."
+              },
+              {
+                "value": "low",
+                "name": "Low",
+                "description": "Prefer for routine or latency-sensitive tasks."
+              },
+              {
+                "value": "high",
+                "name": "High",
+                "description": "The default balance for most tasks."
+              },
+              {
+                "value": "max",
+                "name": "Max",
+                "description": "Reserve for the hardest quality-first tasks."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "setReasoning": {
+      "ok": true,
+      "result": {
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                    "name": "deepseek-v4-flash"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "reasoning_effort",
+            "name": "Reasoning effort",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": "low",
+            "options": [
+              {
+                "value": "off",
+                "name": "Off",
+                "description": "Use for simple tasks that do not need reasoning."
+              },
+              {
+                "value": "low",
+                "name": "Low",
+                "description": "Prefer for routine or latency-sensitive tasks."
+              },
+              {
+                "value": "high",
+                "name": "High",
+                "description": "The default balance for most tasks."
+              },
+              {
+                "value": "max",
+                "name": "Max",
+                "description": "Reserve for the hardest quality-first tasks."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "rejectActiveResume": {
+      "ok": true,
+      "result": {
+        "expectedRejection": {
+          "code": -32602,
+          "message": "Invalid params: session is already active: REDACTED_TEST_ID_2"
+        }
+      }
+    },
+    "closeSession": {
+      "ok": true,
+      "result": {}
+    },
+    "resumeSession": {
+      "ok": true,
+      "result": {
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                    "name": "deepseek-v4-flash"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "reasoning_effort",
+            "name": "Reasoning effort",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": "high",
+            "options": [
+              {
+                "value": "off",
+                "name": "Off",
+                "description": "Use for simple tasks that do not need reasoning."
+              },
+              {
+                "value": "low",
+                "name": "Low",
+                "description": "Prefer for routine or latency-sensitive tasks."
+              },
+              {
+                "value": "high",
+                "name": "High",
+                "description": "The default balance for most tasks."
+              },
+              {
+                "value": "max",
+                "name": "Max",
+                "description": "Reserve for the hardest quality-first tasks."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "listSessions": {
+      "ok": true,
+      "result": {
+        "sessions": [
+          {
+            "sessionId": "REDACTED_TEST_ID_3",
+            "cwd": "%USERPROFILE%\\Desktop\\BotLink\\.research"
+          },
+          {
+            "sessionId": "REDACTED_TEST_ID_4",
+            "cwd": "%USERPROFILE%\\Desktop\\BotLink\\.research"
+          }
+        ]
+      }
+    }
+  }
+}

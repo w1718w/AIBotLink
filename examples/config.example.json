@@ -1,0 +1,27 @@
+{
+  "_comment": "EXAMPLE_ONLY: 无真实凭据。复制到仓库外的数据目录并替换占位路径及标识；程序不展开路径中的环境变量。已有 dsh-im 优先使用 import-dsh 命令。",
+  "qq": {
+    "appid": "YOUR_BOT_APP_ID",
+    "secretSource": { "file": "C:/path/to/credentials.yaml", "ref": "YOUR_QQ_SECRET_REF" },
+    "allowedUsers": ["YOUR_QQ_USER_OPENID"],
+    "allowedGroups": []
+  },
+  "agents": {
+    "codex": {
+      "type": "codex",
+      "command": "C:/Users/YOU/AppData/Local/Programs/OpenAI/Codex/bin/codex.exe",
+      "args": ["app-server"],
+      "cwd": "C:/path/to/project",
+      "home": "C:/Users/YOU/.codex"
+    },
+    "dsh": {
+      "type": "dsh",
+      "cwd": "C:/path/to/project",
+      "dshBridge": "C:/Users/YOU/AppData/Local/AIBotLink/dsh-bridge.json"
+    }
+  },
+  "messages": {
+    "menu.title": "选择操作",
+    "button.agents": "智能体"
+  }
+}

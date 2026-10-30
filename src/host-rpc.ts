@@ -1,3 +1,4 @@
+import http from 'node:http';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
@@ -7,13 +8,16 @@ import { t as uiText } from './messages.js';
 
 // Companion transport: one authenticated loopback SSE connection owns its RPCs
 // and approval responses. Closing this client never stops the Desktop host.
+// Uses node:http instead of fetch: a prompt RPC can stay pending for the whole
+// native turn, which exceeds the fetch client's default 5 minute header/body caps.
 export class HostRpcClient extends EventEmitter {
   private readonly connection = randomUUID();
   private readonly controller = new AbortController();
+  private readonly target: URL;
   private nextId = 0;
   private dead?: Error;
   private stream?: Promise<void>;
-  private constructor(private readonly url: string, private readonly token: string) { super(); }
+  private constructor(url: URL, private readonly token: string) { super(); this.target = url; }
   get alive() { return !this.dead; }
 
   static async connect(configFile: string): Promise<HostRpcClient> {
@@ -30,28 +34,35 @@ export class HostRpcClient extends EventEmitter {
       !/^http:\/\/(?:127\.0\.0\.1|\[::1\]):[0-9]+\/?$/.test(config.url) ||
       !['127.0.0.1', '[::1]'].includes(url.hostname) || !url.port || url.username || url.password ||
       url.pathname !== '/' || url.search || url.hash) throw new Error(uiText('hostRpc.invalidConfig'));
-    const client = new HostRpcClient(url.origin, config.token);
-    const timeout = setTimeout(() => client.controller.abort(), 30_000);
-    try {
-      const response = await fetch(`${client.url}/events`, { headers: client.headers(), redirect: 'error', signal: client.controller.signal });
-      if (!response.ok || !response.body || !response.headers.get('content-type')?.startsWith('text/event-stream')) {
-        await response.body?.cancel(); throw new Error(uiText('hostRpc.connectionFailed'));
-      }
-      client.stream = client.readEvents(response.body);
-      return client;
-    } catch {
-      client.controller.abort(); throw new Error(uiText('hostRpc.connectionFailed'));
-    } finally { clearTimeout(timeout); }
+    const client = new HostRpcClient(url, config.token);
+    try { await client.openEvents(30_000); return client; }
+    catch { client.controller.abort(); throw new Error(uiText('hostRpc.connectionFailed')); }
   }
-  private headers() {
+  private headers(): http.OutgoingHttpHeaders {
     return { Authorization: `Bearer ${this.token}`, 'X-AIBotLink-Connection': this.connection, 'Content-Type': 'application/json' };
   }
   private end(error: Error) {
     if (this.dead) return;
     this.dead = error; this.controller.abort(); this.emit('closed', error);
   }
-  private async readEvents(body: ReadableStream<Uint8Array>) {
-    const reader = body.getReader(); const decoder = new TextDecoder(); let buffer = ''; let data: string[] = [];
+  private openEvents(timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let settled = false; let timer: NodeJS.Timeout | undefined;
+      const done = (error?: Error) => { if (settled) return; settled = true; if (timer) clearTimeout(timer); if (error) reject(error); else resolve(); };
+      const req = http.request({ host: this.target.hostname.replace(/^\[|\]$/g, ''), port: this.target.port, path: '/events', method: 'GET',
+        headers: this.headers(), signal: this.controller.signal }, response => {
+        const contentType = String(response.headers['content-type'] ?? '');
+        if (response.statusCode !== 200 || !contentType.startsWith('text/event-stream')) { response.resume(); done(new Error(uiText('hostRpc.connectionFailed'))); return; }
+        done();
+        this.stream = this.readEvents(response);
+      });
+      timer = setTimeout(() => { req.destroy(); done(new Error(uiText('hostRpc.connectionFailed'))); }, timeoutMs);
+      req.on('error', () => done(new Error(uiText('hostRpc.connectionFailed'))));
+      req.end();
+    });
+  }
+  private async readEvents(response: http.IncomingMessage) {
+    let buffer = ''; let data: string[] = [];
     const line = (value: string) => {
       if (value === '') {
         if (!data.length) return;
@@ -61,10 +72,9 @@ export class HostRpcClient extends EventEmitter {
       } else if (value.startsWith('data:')) data.push(value.slice(5).replace(/^ /, ''));
     };
     try {
-      while (this.alive) {
-        const next = await reader.read();
-        if (next.done) break;
-        buffer += decoder.decode(next.value, { stream: true });
+      response.setEncoding('utf8');
+      for await (const chunk of response) {
+        buffer += chunk as string;
         // Bound a malformed/unframed event without logging native payloads.
         if (buffer.length + data.join('\n').length > 4 * 1024 * 1024) throw new Error();
         let end: number;
@@ -79,22 +89,38 @@ export class HostRpcClient extends EventEmitter {
       if (this.alive) this.end(new Error(uiText('hostRpc.disconnected')));
     } catch {
       if (this.alive) this.end(new Error(uiText('hostRpc.disconnected')));
-    } finally { reader.releaseLock(); }
+    }
   }
-  private async post(path: string, body: Data, timeout: number): Promise<Data> {
-    if (this.dead) throw this.dead;
-    const timeoutController = new AbortController();
-    const timer = timeout ? setTimeout(() => timeoutController.abort(), timeout) : undefined;
-    try {
-      const response = await fetch(`${this.url}${path}`, { method: 'POST', headers: this.headers(), body: JSON.stringify(body), redirect: 'error',
-        signal: AbortSignal.any([this.controller.signal, timeoutController.signal]) });
-      if (!response.ok) { await response.body?.cancel(); throw new Error(); }
-      return await response.json() as Data;
-    } catch {
-      if (this.dead) throw this.dead;
-      if (timeoutController.signal.aborted) throw new Error(uiText('rpc.requestTimeout', { v0: body.method ?? path }));
-      throw new Error(uiText('hostRpc.requestFailed'));
-    } finally { clearTimeout(timer); }
+  private post(path: string, body: Data, timeout: number): Promise<Data> {
+    if (this.dead) return Promise.reject(this.dead);
+    const payload = JSON.stringify(body);
+    const timeoutMessage = uiText('rpc.requestTimeout', { v0: body.method ?? path });
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (error: Error) => { if (!settled) { settled = true; reject(error); } };
+      const req = http.request({ host: this.target.hostname.replace(/^\[|\]$/g, ''), port: this.target.port, path, method: 'POST',
+        headers: { ...this.headers(), 'Content-Length': Buffer.byteLength(payload) }, signal: this.controller.signal }, response => {
+        const chunks: Buffer[] = []; let size = 0;
+        response.on('data', (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > 8 * 1024 * 1024) req.destroy(new Error(uiText('hostRpc.requestFailed')));
+          else chunks.push(chunk);
+        });
+        response.on('error', () => fail(new Error(uiText('hostRpc.requestFailed'))));
+        response.on('end', () => {
+          if (settled) return;
+          if ((response.statusCode ?? 0) < 200 || (response.statusCode ?? 0) >= 300) return fail(new Error(uiText('hostRpc.requestFailed')));
+          try { const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8')) as Data; settled = true; resolve(parsed); }
+          catch { fail(new Error(uiText('hostRpc.requestFailed'))); }
+        });
+      });
+      if (timeout) req.setTimeout(timeout, () => req.destroy(new Error(timeoutMessage)));
+      req.on('error', (error: Error) => {
+        if (this.dead) return fail(this.dead);
+        fail(error.message === timeoutMessage ? error : new Error(uiText('hostRpc.requestFailed')));
+      });
+      req.end(payload);
+    });
   }
   async call(method: string, params: Data = {}, timeout = 30_000): Promise<any> {
     const id = ++this.nextId;

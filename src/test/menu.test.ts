@@ -69,6 +69,15 @@ test('all commands are reachable in both agent menus and callbacks execute the s
     assert.equal(sent.at(-1)![0].data.text, replies.at(-1)!.text);
     const count = sent.length;
     await (transport as any).action(event); assert.deepEqual(acks, [0, 1]); assert.equal(sent.length, count);
+    // Grouped actions share a row: eight menu entries use four rows, pagination one more.
+    const grouped: Action[] = Array.from({ length: 8 }, (_, n) => ({ label: `项${n + 1}`, command: `/item${n + 1}`, group: `row${Math.floor(n / 2)}` }));
+    grouped.push({ label: '上一页', command: '/m 0', group: 'nav' }, { label: '下一页', command: '/m 2', group: 'nav' });
+    transport.bot = { sendPrivateMessage: async (_user: string, content: any[]) => { sent.push(content); } } as any;
+    const before = sent.length;
+    await (transport as any).reply('owner', undefined, { id: 'page' }, scope)('menu', grouped);
+    const pageRows = sent[before].filter(s => s.type === 'button');
+    assert.equal(pageRows.length, 5);
+    assert.deepEqual(pageRows.map((row: any) => row.data.buttons.length), [2, 2, 2, 2, 2]);
     assert.ok([...gateway.agents.values()].every(a => a.rpc === undefined));
   } finally {
     await gateway.close();

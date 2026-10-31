@@ -196,6 +196,12 @@ export class NativeAgent extends EventEmitter {
     const r = this.sessions.get(next)!;
     return { session: next, sandbox: r.sandbox, approvalPolicy: r.approvalPolicy };
   }
+  async permissionState(id: string) {
+    await this.attach(id);
+    if (this.config.dshBridge) return (await this.rpc!.call('session/permissions', { sessionId: id })).currentValue as string;
+    if (this.config.type !== 'codex') throw new Error(uiText('permission.dshUnsupported'));
+    return (this.sessions.get(id)!.sandbox?.type as string | undefined) ?? uiText('settings.notExposed');
+  }
   async permissionOptions(id?: string): Promise<{ value: string; name: string }[]> {
     if (this.config.type === 'codex') return [{ value: 'read-only', name: uiText('button.readOnly') }, { value: 'workspace-write', name: uiText('button.workspaceWrite') }];
     if (!this.config.dshBridge || !id) throw new Error(uiText('permission.dshUnsupported'));

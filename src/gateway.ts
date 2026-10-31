@@ -13,6 +13,15 @@ interface Task { scope: string; reply: Reply; progress: number; lastProgress: nu
 interface Pending { scope: string; agent: string; session: string; request: Data; expires: number }
 interface SessionPage { scope: string; agent: string; items: Data[]; nativeCursor?: string; expires: number }
 
+// DSH 模型选项值以 JSON 编码的 [provider, model] 字符串传递；聊天回复只展示可读名称。
+const modelLabel = (value: string) => {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) && parsed.length === 2 && parsed.every(part => typeof part === 'string') ? `${parsed[0]} / ${parsed[1]}` : value;
+  } catch { return value; }
+};
+
+
 export class Gateway {
   readonly agents: Map<string, NativeAgent>;
   readonly commands: Command[];
@@ -220,7 +229,14 @@ export class Gateway {
       ...(['model', 'reasoning'] as const).map(kind => cmd(kind, kind === 'model' ? uiText("command.model.description") : uiText("command.reasoning.description"), async (i, b, value) => {
         const a = this.agent(b); const id = await this.session(b);
         if (this.store.value.operations[i.scope]) throw new Error(uiText("settings.waitForIdle"));
-        if (!value) return i.reply(JSON.stringify({ native: await a.settings(id), requestedForNextTurn: b.settings[a.id] ?? {} }, null, 2));
+        if (!value) {
+          const native = await a.settings(id); const requested = b.settings[a.id] ?? {};
+          const current = kind === 'model'
+            ? [native.modelProvider, native.model].filter(Boolean).join(' / ') || uiText('settings.notExposed')
+            : native.reasoningEffort || uiText('settings.notExposed');
+          return i.reply(uiText(kind === 'model' ? 'settings.modelCurrent' : 'settings.reasoningCurrent',
+            { v0: current, v1: requested[kind] ?? uiText('settings.notRequested') }));
+        }
         if (a.config.type === 'codex') {
           const catalog = await a.models(); const opts = b.settings[a.id] ??= {};
           if (kind === 'model' && !catalog.some((m: Data) => m.id === value || m.model === value)) throw new Error(uiText("model.notListed"));
@@ -231,9 +247,19 @@ export class Gateway {
           }
           opts[kind] = value;
           await i.reply(uiText("settings.nextTurnRequested", { v0: kind, v1: value }));
-        } else await i.reply(JSON.stringify(await a.setOption(id, kind, value), null, 2));
+        } else {
+          await a.setOption(id, kind, value);
+          await i.reply(uiText(kind === 'model' ? 'settings.modelChanged' : 'settings.reasoningChanged',
+            { v0: kind === 'model' ? modelLabel(value) : value }));
+        }
       }, '[value]')),
-      cmd('reasonings', uiText('command.reasonings.description'), async (i, b) => i.reply(JSON.stringify(await this.agent(b).reasoningOptions(await this.session(b)), null, 2) || uiText('settings.notExposed'))),
+      cmd('reasonings', uiText('command.reasonings.description'), async (i, b) => {
+        const exposed = await this.agent(b).reasoningOptions(await this.session(b));
+        const list: Data[] = Array.isArray(exposed)
+          ? exposed.map((r: Data) => ({ value: r.reasoningEffort ?? r.value, name: r.description ?? r.name }))
+          : exposed?.options ?? [];
+        await i.reply(list.map((r: Data) => r.name ? `${r.value} — ${r.name}` : String(r.value)).join('\n') || uiText('settings.notExposed'));
+      }),
       cmd('permissionlist', uiText('command.permissionlist.description'), async (i, b, page) => {
         const a = this.agent(b);
         const options = await a.permissionOptions(a.config.type === 'codex' ? undefined : await this.session(b));
@@ -247,10 +273,10 @@ export class Gateway {
       }, '[offset]'),
       cmd('permission', uiText("command.permission.description"), async (i, b, mode) => {
         const a = this.agent(b); const id = await this.session(b);
-        if (!mode) return i.reply(JSON.stringify(await a.settings(id), null, 2));
+        if (!mode) return i.reply(uiText('permission.current', { v0: await a.permissionState(id) }));
         if (this.store.value.operations[i.scope]) throw new Error(uiText('settings.waitForIdle'));
         const result = await a.setPermission(id, mode); b.sessions[a.id] = result.session;
-        await i.reply(JSON.stringify(result, null, 2));
+        await i.reply(uiText('permission.changed', { v0: result.currentValue ?? result.sandbox?.type ?? mode }));
       }, '[mode]'),
       cmd('stop', uiText("command.stop.description"), async (i, b) => {
         const op = this.store.value.operations[i.scope]; if (!op) throw new Error(uiText("task.noChatTask"));

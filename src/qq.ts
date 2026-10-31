@@ -80,15 +80,23 @@ export class QqTransport {
           const now = Date.now();
           for (const [key, b] of this.buttons) if (b.expires < now) this.buttons.delete(key);
           if (this.buttons.size > 1000) this.buttons.clear();
-          const buttons = actions.slice(0, 5).map(a => {
+          // Buttons stay one per row so labels remain readable on phones. Actions
+          // sharing a group (for example menu pagination) share one row; the
+          // platform message limit is five rows.
+          const rows: Action[][] = [];
+          for (const action of actions) {
+            const last = rows.at(-1);
+            if (action.group && last?.[0].group === action.group) last.push(action);
+            else { if (rows.length >= 5) break; rows.push([action]); }
+          }
+          const buttons = rows.map(row => segment.button({ buttons: row.map(a => {
             const token = `bl:${randomBytes(12).toString('hex')}`;
             // Approval commands already carry an immutable native-request token.
             // They must remain usable after selecting a different foreground Agent.
             const requestBound = /^\/(approve|answer)\s/.test(a.command);
             this.buttons.set(token, { scope, command: a.command, expires: now + 15 * 60_000, target: requestBound ? undefined : this.target(scope) });
-            // Explicit rows prevent the SDK from packing five buttons horizontally.
-            return segment.button({ buttons: [{ render_data: { label: a.label, visited_label: a.label }, action: { type: 1, permission: { type: 2 }, data: token } }] });
-          });
+            return { render_data: { label: a.label, visited_label: a.label }, action: { type: 1, permission: { type: 2 }, data: token } };
+          }) }));
           try { await send([segment.markdown(chunks[n]), ...buttons]); }
           catch (error) {
             // Only explicit platform rejection permits a second send. A timeout is ambiguous.

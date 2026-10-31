@@ -5,7 +5,7 @@ import type { Config } from './config.js';
 import { StateStore, type Binding } from './state.js';
 import type { Data } from './rpc.js';
 
-export interface Action { label: string; command: string }
+export interface Action { label: string; command: string; group?: string }
 export type Reply = (text: string, actions?: Action[]) => Promise<void>;
 export interface Input { id: string; scope: string; user: string; group?: string; text: string; reply: Reply; receivedAt?: number }
 interface Command { name: string; description: string; shortLabel: string; aliases: string[]; arguments?: string; run: (i: Input, b: Binding, args: string) => Promise<void> }
@@ -124,14 +124,16 @@ export class Gateway {
         }
         const common = ['agents', 'status', 'sessions', 'new', 'fork', 'stop'];
         const ordered = [...common.flatMap(name => this.commands.filter(c => c.name === name)), ...this.commands.filter(c => !common.includes(c.name))];
-        const page = Number(arg || 0); const size = 3; const pages = Math.ceil(ordered.length / size);
+        // Eight commands fit in four rows of two; pagination shares the last row.
+        const page = Number(arg || 0); const size = 8; const pages = Math.ceil(ordered.length / size);
         if (!Number.isInteger(page) || page < 0 || page >= pages) throw new Error(uiText('catalog.invalidPage'));
         const items = ordered.slice(page * size, (page + 1) * size);
-        await i.reply(uiText('menu.page', { page: page + 1, pages, items: items.map(c => `/${c.name} — ${c.description}`).join('\n') }), [
-          ...items.map(c => ({ label: c.shortLabel, command: c.arguments?.includes('<') ? `/m ${c.name}` : `/${c.name}` })),
-          ...(page > 0 ? [{ label: uiText('button.previous'), command: `/m ${page - 1}` }] : []),
-          ...(page + 1 < pages ? [{ label: uiText('button.next'), command: `/m ${page + 1}` }] : []),
-        ]);
+        const actions: Action[] = [
+          ...items.map((c, n) => ({ label: c.shortLabel, command: c.arguments?.includes('<') ? `/m ${c.name}` : `/${c.name}`, group: `row${Math.floor(n / 2)}` })),
+          ...(page > 0 ? [{ label: uiText('button.previous'), command: `/m ${page - 1}`, group: 'nav' }] : []),
+          ...(page + 1 < pages ? [{ label: uiText('button.next'), command: `/m ${page + 1}`, group: 'nav' }] : []),
+        ];
+        await i.reply(uiText('menu.page', { page: page + 1, pages, items: items.map(c => `/${c.name} — ${c.description}`).join('\n') }), actions);
       }, '[page|command]'),
       cmd('agents', uiText("command.agents.description"), async (i, b) => i.reply([...this.agents.values()].map(a => uiText("agents.row", { v0: b.agent === a.id ? '✓ ' : '', v1: a.id, v2: a.rpc?.alive ? uiText("runtime.running") : uiText("runtime.unavailable"), v3: a.runs.size, v4: a.error ? `；${a.error}` : '' })).join('\n'), [...this.agents.keys()].map(id => ({ label: id, command: `/agent ${id}` })))),
       cmd('agent', uiText("command.agent.description"), async (i, b, arg) => {
@@ -221,7 +223,7 @@ export class Gateway {
         const list = await this.agent(b).catalog(await this.session(b)); const offset = Number(page || 0);
         if (!Number.isInteger(offset) || offset < 0 || offset > list.length) throw new Error(uiText("catalog.invalidPage"));
         const items = list.slice(offset, offset + 4);
-        await i.reply(items.map((m, n) => `${n + 1}. ${m.provider ? m.provider + ' / ' : ''}${m.name}\n${m.value}`).join('\n\n') || uiText("model.emptyDirectory"), [
+        await i.reply(items.map((m, n) => `${n + 1}. ${m.provider ? m.provider + ' / ' : ''}${m.name}`).join('\n') || uiText("model.emptyDirectory"), [
           ...items.map((m, n) => ({ label: uiText("button.modelNumber", { v0: n + 1 }), command: `/model ${m.value}` })),
           ...(offset + 4 < list.length ? [{ label: uiText("button.next"), command: `/models ${offset + 4}` }] : []),
         ]);

@@ -27,7 +27,9 @@ test('all commands are reachable in both agent menus and callbacks execute the s
       const reached = new Set<string>(); let page = '/m';
       for (let n = 0; n < 50; n++) {
         await receive(page); const result = replies.at(-1)!;
-        assert.ok(result.actions.length <= 5);
+        // Eight entries plus up to two pagination buttons; two buttons share each row.
+        assert.ok(result.actions.filter(a => a.group !== 'nav').length <= 8);
+        assert.ok(result.actions.filter(a => a.group === 'nav').length <= 2);
         for (const match of result.text.matchAll(/^\/(\w+) — (.+)$/gm)) {
           reached.add(match[1]); assert.ok(Array.from(match[2]).length <= 10);
           const command = gateway.commands.find(c => c.name === match[1])!;

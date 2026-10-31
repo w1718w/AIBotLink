@@ -2,10 +2,14 @@ $ErrorActionPreference = 'Stop'
 $gatewayRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $gatewayRoot '..'))
 $launchScript = Join-Path $PSScriptRoot 'Start-Gateway.ps1'
+$wscriptPath = Join-Path $env:WINDIR 'System32\wscript.exe'
+$hiddenLauncher = Join-Path $PSScriptRoot 'Start-Gateway.vbs'
 $settingsScript = Join-Path $PSScriptRoot 'Open-Settings.ps1'
 $powerShellPath = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-$action = New-ScheduledTaskAction -Execute $powerShellPath -Argument ('-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $launchScript + '"') -WorkingDirectory $gatewayRoot
+# Windows Terminal is the default console host and ignores -WindowStyle Hidden,
+# so the task starts a console-less wscript launcher that runs the gateway hidden.
+$action = New-ScheduledTaskAction -Execute $wscriptPath -Argument ('//nologo //B "' + $hiddenLauncher + '"') -WorkingDirectory $gatewayRoot
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User $currentIdentity
 $principal = New-ScheduledTaskPrincipal -UserId $currentIdentity -LogonType Interactive -RunLevel Limited
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)

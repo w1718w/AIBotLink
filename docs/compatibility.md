@@ -25,7 +25,7 @@
 |---|---|
 | 消息 | 仅文本；不转交附件，不回传本地文件 |
 | 群聊 | 仅白名单校验与基础收发；不提供群管理或其他 IM 接入 |
-| 历史 | `/history` 只取 Codex 最近五个 Turn，或 DSH Host 最近快照中的文本；不提供完整历史翻页 |
+| 历史 | `/history` 只取 Codex 最近五个 Turn，或 DSH Host 最近快照中的真实用户与助手消息，不含注入的 workspace 指令、runtime context 等上下文；不提供完整历史翻页 |
 | 分支 | `/fork` 对 Codex 与 DSH Host 桥调用原生分支接口；DSH ACP 路径不支持 |
 | 会话控制 | `/stop`、`/steer`、`/compact` 通过原生能力执行；DSH ACP 路径不支持 Steer、Compact |
 | 权限 | Codex 提供 `read-only`、`workspace-write` 两种沙箱模式；DSH Host 桥按原生权限目录执行；DSH ACP 路径不支持权限修改 |
@@ -46,7 +46,7 @@ Codex 0.153.2 未产生 rollout 的空白线程无法恢复。网关只为本地
 
 DSH ACP 的空白会话关闭后可恢复，但设置可能恢复为默认值；该路径不提供图片、音频或嵌入上下文输入。所有接入只转交文本。
 
-`/history` 返回 Codex 最近五个 Turn，或 DSH Host 最近快照中的文本，不提供完整历史翻页。目录可分页不代表所有历史记录都能一次读回。
+`/history` 返回 Codex 最近五个 Turn，或 DSH Host 最近快照中的真实用户与助手消息，不含注入的 workspace 指令、runtime context、skill catalog、time context 等上下文；不提供完整历史翻页。目录可分页不代表所有历史记录都能一次读回。
 
 ## 开发者测试
 

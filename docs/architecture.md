@@ -52,7 +52,7 @@ stdio 协议客户端持有实际 ChildProcess；关闭时先结束 stdin，超�
 
 网关侧只消费接口语义：会话创建、恢复、列表、历史、分支、模型与推理选项、权限目录与执行、任务提交与中断、Steer、压缩，以及审批/提问请求。事件按会话归属过滤，任务按本网关提交映射回来源聊天；不把 Desktop 无关回合当成网关回复。接口不可用或断开时，网关按未知结果处理，不自动取消原生任务、不重放；具体字段与错误语义以接口文档为准。
 
-仓库中的可选 `npm run install:dsh` 便捷脚本用于把已安装的桥接端注册到 DSH Profile 并更新网关的 `dshBridge` 配置；桥接端的安装、注册和 Host 重启不属于接口契约，由桥接端自身文档负责。
+仓库中的可选 `npm run install:dsh` 便捷脚本默认通过 DSH 原生插件 CLI 从 GitHub 安装桥接端，保留 `AILINKBRIDGE_COMPANION` 本地目录覆盖。它依赖 Windows 标准 DSH 安装位置及已有配置和 Profile，备份 Profile 清单与网关配置、启用 bundle 并更新 `dshBridge`；不启停 Host。安装与配置步骤见 [项目 README](../README.md#dsh-host-桥接)。桥接端的分发、注册和 Host 重启不属于接口契约。
 
 本地 `state.json` 保存绑定、近期已处理消息、提交状态、待交付最终回复和面板标记，不保存完整聊天历史。提交状态为 `dispatching`、`accepted`、`unknown` 或 `completed`。重启将未完成状态标为 `unknown`，保留已完成状态及结果；断线或调用失败也可能产生未知结果。
 

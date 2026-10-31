@@ -29,11 +29,30 @@ npm start -- import-dsh "$env:USERPROFILE\.dsh" "C:\path\to\your-project"
 
 ### DSH Host 桥接
 
-需要复用现有 DSH Host 会话时，把配置中的 `agents.<id>.dshBridge` 指向符合 [DSH Host 桥接接口](docs/dsh-bridge-protocol.md) 的连接记录。网关只依赖该接口，不依赖具体桥接实现；桥接端的安装、连接记录生成与 Host 重启由桥接端自身负责。
+通过 DSH 原生插件 CLI 从 GitHub 安装桥接插件，无需 clone 插件仓库。安装前备份目标 Profile；需能访问 GitHub：
 
-连接记录包含回环地址与随机 Token，默认位于 `%LOCALAPPDATA%\AIBotLink\dsh-bridge.json`；不要复制、提交或共享该文件。自定义数据目录时，桥接端与网关必须使用同一记录。桥接模式连接已运行的 Host，网关不另起 ACP 进程，也不启停 Desktop。
+```powershell
+dsh plugin --profile desktop add "github:w1718w/AIBotLink-DSH#main"
+```
 
-网关仓库另提供可选的便捷脚本 `npm run install:dsh`，用于把已安装的桥接端注册到 DSH Profile 并更新网关的 `dshBridge` 配置；它依赖 Windows 标准 DSH 安装位置及已有 Profile，不是通用安装器，也不属于桥接接口的一部分。脚本只完成注册与配置写入，桥接端是否加载、任务是否可用由桥接端和原生 Host 决定。
+原生 CLI 不会替你配置网关。安装后继续完成以下步骤：
+
+1. 检查 DSH 的 `%USERPROFILE%\.dsh\profiles\desktop\package.json`（自定义 DSH_HOME 时使用对应目录），确认 `dsh.profile.bundles` 数组包含 `aibotlink-dsh-companion`；若没有，将它追加到数组，保留其他 bundle。
+2. 编辑仓库外已有的网关 `config.json`：将 `agents.dsh` 改为 Host 桥接配置，保留原有工作目录 `cwd`，移除原 ACP 的 `command` / `args`。下面仅示意 `agents.dsh` 对象，不要覆盖整份配置；保留 QQ 配置及其他 Agent，并替换用户名和项目路径：
+
+```json
+{
+  "type": "dsh",
+  "cwd": "C:\\path\\to\\your-project",
+  "dshBridge": "C:\\Users\\<用户名>\\AppData\\Local\\AIBotLink\\dsh-bridge.json"
+}
+```
+
+3. 停止已有网关，重启对应 DSH Host，让插件生成连接记录。在网关目录按下一节执行 `npm start -- doctor` 检查握手，再重新启动网关加载更新后的配置。桥接只允许一个客户端，doctor 检查时不要同时运行网关。安装成功不等于插件已加载，握手通过后再验证实际任务。
+
+连接记录包含回环地址与随机 Token，默认位于 `%LOCALAPPDATA%\AIBotLink\dsh-bridge.json`；`dshBridge` 必须填写展开后的仓库外绝对路径，JSON 中的反斜杠需写成 `\`。不要复制、提交或共享连接记录。自定义数据目录时，桥接端的 `dataHome` 或 Host 进程的 `BOTLINK_HOME` 与网关的 `dshBridge` 必须指向同一记录。桥接模式连接已运行的 Host，不另起 ACP 进程，也不启停 Desktop；接口契约见 [DSH Host 桥接接口](docs/dsh-bridge-protocol.md)。
+
+可选便捷方式：在网关目录运行 `npm run install:dsh`，同样默认从 GitHub 安装，并备份 Profile 清单与网关配置、启用 bundle、更新 `dshBridge`。它依赖 Windows 标准 DSH 安装位置、已有网关配置及 Profile；默认目标是 `desktop`，可用 `npm run install:dsh -- <profile>` 指定其他已有 Profile。脚本不重启 Host，完成后仍需重启 Host 并让网关重新加载配置。开发时可设置环境变量 `AILINKBRIDGE_COMPANION` 为本地插件目录，覆盖默认 GitHub 来源；恢复在线安装前清除此变量。插件独立说明见 [桥接插件 README](https://github.com/w1718w/AIBotLink-DSH#安装与连接)。
 
 ### 检查与启动
 

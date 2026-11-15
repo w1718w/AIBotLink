@@ -10,8 +10,8 @@ import { NativeAgent } from './agent.js';
 import { acquireLock, unlockStoppedProcess } from './lock.js';
 import { startSetup, findExistingSetup, publishSetupUrl } from './setup.js';
 
-async function startRuntime(config: Config, consoleMode = false) {
-  const release = await acquireLock();
+async function startRuntime(config: Config, consoleMode = false, recoverLock = false) {
+  const release = await acquireLock(recoverLock);
   let store: StateStore;
   try { store = await new StateStore().load(); } catch (error) { await release(); throw error; }
   const gateway = new Gateway(config, store);
@@ -28,7 +28,8 @@ async function main() {
     console.log(uiText("cli.configImported", { v0: configPath })); return;
   }
   if (process.argv[2] === 'unlock') { await unlockStoppedProcess(); console.log(uiText('runtime.unlocked')); return; }
-  if (process.argv[2] === 'setup' || process.argv[2] === undefined) {
+  const scheduled = process.argv[2] === '--scheduled';
+  if (scheduled || process.argv[2] === 'setup' || process.argv[2] === undefined) {
     const existing = await findExistingSetup();
     if (existing) { console.log(uiText('cli.setupStarted', { url: existing })); return; }
     let runtime: Awaited<ReturnType<typeof startRuntime>> | undefined;
@@ -53,8 +54,13 @@ async function main() {
     process.once('SIGINT', () => { void close().then(() => process.exit(0)); });
     process.once('SIGTERM', () => { void close().then(() => process.exit(0)); });
     if (process.argv[2] !== 'setup') {
-      try { runtime = await startRuntime(await loadConfig()); console.log(uiText('cli.started')); }
-      catch (error) { console.error(uiText('cli.startFailed', { v0: (error as Error).message })); }
+      try { runtime = await startRuntime(await loadConfig(), false, scheduled); console.log(uiText('cli.started')); }
+      catch (error) {
+        if (scheduled && !((error as NodeJS.ErrnoException).code === 'ENOENT' && (error as NodeJS.ErrnoException).path === configPath)) {
+          await close(); throw error;
+        }
+        console.error(uiText('cli.startFailed', { v0: (error as Error).message }));
+      }
     }
     return;
   }

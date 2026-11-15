@@ -8,4 +8,6 @@ dist/
 config.json
 state.json
 credentials*
+gateway.lock
+gateway.lock.*.recover
 .botlink/

@@ -10,5 +10,5 @@ $outputLog = Join-Path $runtimeDirectory "gateway-$logStamp.out.log"
 $errorLog = Join-Path $runtimeDirectory "gateway-$logStamp.err.log"
 # Keep ownership of this exact child. The scheduled task waits for it and may
 # restart a failed gateway; it never searches for or kills other Node processes.
-$gatewayProcess = Start-Process -FilePath $nodePath -ArgumentList ('"' + $entryPoint + '"') -WorkingDirectory $gatewayRoot -WindowStyle Hidden -RedirectStandardOutput $outputLog -RedirectStandardError $errorLog -PassThru -Wait
+$gatewayProcess = Start-Process -FilePath $nodePath -ArgumentList ('"' + $entryPoint + '" --scheduled') -WorkingDirectory $gatewayRoot -NoNewWindow -RedirectStandardOutput $outputLog -RedirectStandardError $errorLog -PassThru -Wait
 exit $gatewayProcess.ExitCode

@@ -60,7 +60,7 @@ DSH 桥接模式的 `/release` 只断开网关客户端，不停止 DSH Host、�
 
 恢复会话时若提示桌面或其他 Codex 客户端占用，本次 QQ 任务没有提交。可点“新会话”或发送 `/new` 另建会话，原会话及历史保留；要继续原会话，先由占用方释放，再重新发送任务。本网关 `/release` 只能解除自己的占用，不能解开 Desktop 或其他客户端的写锁。
 
-异常退出可能留下仓库外 `gateway.lock`。确认旧网关已经停止后，可执行 `npm start -- unlock` 再启动。该命令只在记录的 PID 不存在时删除锁；PID 仍存活或无法确认时拒绝处理，绝不终止锁中记录的进程。不要靠手动删除锁运行第二个实例。
+异常退出可能留下仓库外的 `gateway.lock`。手动启动遇到旧锁时，可在确认旧网关已停止后运行 `npm start -- unlock`，再重新启动。该命令仅在确认锁中记录的 PID 已不存在时清理旧锁。计划任务启动时会自动执行同样的检查。
 
 ## 部署与自启
 
@@ -72,11 +72,13 @@ DSH 桥接模式的 `/release` 只断开网关客户端，不停止 DSH Host、�
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Install-WindowsStartup.ps1
 ```
 
-脚本注册的计划任务名为 `AILinkBridge`，在用户登录时运行 [Start-Gateway.ps1](scripts/Start-Gateway.ps1)，只启动本网关，不启停 DSH Host。该脚本要求 `dist/main.js` 已构建，把标准输出和错误分别写入数据目录的 `gateway-<yyyyMMdd-HHmmss-fff>.out.log` 与 `.err.log`；启动失败时先检查这对日志。计划任务包含失败重启和忽略重复实例设置，启动脚本只管理自己创建的子进程。
+`AILinkBridge` 计划任务在用户登录时通过 WScript 运行隐藏的 PowerShell，Node 继承该控制台。启动脚本要求 `dist/main.js` 已构建，并将网关的标准输出和错误分别写入 `%LOCALAPPDATA%\AIBotLink` 下的 `gateway-<yyyyMMdd-HHmmss-fff>.out.log` 和 `.err.log`。启动异常时可检查这对日志。 [启动器](scripts/Start-Gateway.vbs) · [网关启动脚本](scripts/Start-Gateway.ps1)
 
-脚本在网关目录的父目录创建 `AILinkBridge Settings.lnk`，它指向 [Open-Settings.ps1](scripts/Open-Settings.ps1)。该脚本先检查 `setup.json` 中登记且进程仍存活的配置页地址，没有可用地址时启动网关并等待配置页就绪，再打开浏览器；启动失败时提示查看数据目录日志。
+启动脚本以 `--scheduled` 模式启动网关。配置文件尚未创建时，网关保留本地配置页以便首次设置。已有配置时，如果启动失败，网关退出并将失败状态返回给计划任务，计划任务每隔一分钟重试一次，最多重试三次。任务运行时，计划任务忽略重复的启动请求。
 
-自启边界：脚本注册成功不等于登录自启生效；须在下次登录或重启时确认任务实际触发、网关启动、配置页可打开。未使用计划任务时，按上一节的检查与启动流程手动运行。
+网关目录的父目录含有 `AILinkBridge Settings.lnk`，也通过 WScript 启动。快捷方式会打开当前配置页，或先启动网关并等待配置页就绪再打开浏览器。 [配置页脚本](scripts/Open-Settings.ps1)
+
+注册后，在下次登录时检查 `AILinkBridge` 任务是否触发。已有 QQ 配置时，可发送 `/status` 确认机器人已连接。
 
 ## 配置
 

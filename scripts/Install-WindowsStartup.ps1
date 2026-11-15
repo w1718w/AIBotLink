@@ -1,11 +1,8 @@
 $ErrorActionPreference = 'Stop'
 $gatewayRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $workspaceRoot = [IO.Path]::GetFullPath((Join-Path $gatewayRoot '..'))
-$launchScript = Join-Path $PSScriptRoot 'Start-Gateway.ps1'
 $wscriptPath = Join-Path $env:WINDIR 'System32\wscript.exe'
 $hiddenLauncher = Join-Path $PSScriptRoot 'Start-Gateway.vbs'
-$settingsScript = Join-Path $PSScriptRoot 'Open-Settings.ps1'
-$powerShellPath = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
 $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent().Name
 # Windows Terminal is the default console host and ignores -WindowStyle Hidden,
 # so the task starts a console-less wscript launcher that runs the gateway hidden.
@@ -16,8 +13,8 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatt
 Register-ScheduledTask -TaskName 'AILinkBridge' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Start the local IM gateway at sign-in. DSH remains independently managed.' -Force | Out-Null
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut((Join-Path $workspaceRoot 'AILinkBridge Settings.lnk'))
-$shortcut.TargetPath = $powerShellPath
-$shortcut.Arguments = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $settingsScript + '"'
+$shortcut.TargetPath = $wscriptPath
+$shortcut.Arguments = '//nologo //B "' + $hiddenLauncher + '" settings'
 $shortcut.WorkingDirectory = $gatewayRoot
 $shortcut.Save()
 Write-Output 'AILinkBridge sign-in task and settings shortcut registered.'

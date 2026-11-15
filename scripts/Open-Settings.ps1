@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $settingsFile = Join-Path $env:LOCALAPPDATA 'AIBotLink/setup.json'
-$launchScript = Join-Path $PSScriptRoot 'Start-Gateway.ps1'
-$powerShellPath = Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
+$launchScript = Join-Path $PSScriptRoot 'Start-Gateway.vbs'
+$wscriptPath = Join-Path $env:WINDIR 'System32/wscript.exe'
 function Get-SettingsUrl {
     if (-not (Test-Path -LiteralPath $settingsFile)) { return $null }
     try {
@@ -13,7 +13,7 @@ function Get-SettingsUrl {
 }
 $settingsUrl = Get-SettingsUrl
 if (-not $settingsUrl) {
-    Start-Process -FilePath $powerShellPath -ArgumentList ('-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $launchScript + '"') -WindowStyle Hidden | Out-Null
+    Start-Process -FilePath $wscriptPath -ArgumentList ('//nologo //B "' + $launchScript + '"') -WindowStyle Hidden | Out-Null
     for ($attempt = 0; $attempt -lt 40 -and -not $settingsUrl; $attempt++) {
         Start-Sleep -Milliseconds 250
         $settingsUrl = Get-SettingsUrl
